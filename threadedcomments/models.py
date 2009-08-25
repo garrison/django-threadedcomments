@@ -26,17 +26,31 @@ MARKUP_CHOICES = (
 
 DEFAULT_MARKUP = getattr(settings, 'DEFAULT_MARKUP', PLAINTEXT)
 
-def dfs(node, all_nodes, depth):
+def dfs(node, all_nodes, depth=0):
     """
     Performs a recursive depth-first search starting at ``node``.  This function
     also annotates an attribute, ``depth``, which is an integer that represents
     how deeply nested this node is away from the original object.
     """
-    node.depth = depth
-    to_return = [node,]
-    for subnode in all_nodes:
-        if subnode.parent and subnode.parent.id == node.id:
-            to_return.extend(dfs(subnode, all_nodes, depth+1))
+
+    nodes_by_parent = {}
+    for n in all_nodes:
+        nodes_by_parent.setdefault(n.parent_id, []).append(n)
+
+    def do_dfs(node, depth):
+        node.depth = depth
+        to_return.append(node)
+        for subnode in nodes_by_parent.get(node.id, ()):
+            do_dfs(subnode, depth+1)
+
+    to_return = []
+
+    if node is None:
+        for subnode in nodes_by_parent.get(None, ()):
+            do_dfs(subnode, depth)
+    else:
+        do_dfs(node, depth)
+
     return to_return
 
 class ThreadedCommentManager(models.Manager):
@@ -67,23 +81,16 @@ class ThreadedCommentManager(models.Manager):
             content_type = content_type,
             object_id = getattr(content_object, 'pk', getattr(content_object, 'id')),
         ).select_related().order_by('date_submitted'))
-        to_return = []
-        if root:
-            if isinstance(root, int):
-                root_id = root
+
+        if isinstance(root, int):
+            root_id = root
+            for root in children:
+                if root.id == root_id:
+                    break
             else:
-                root_id = root.id
-            to_return = [c for c in children if c.id == root_id]
-            if to_return:
-                to_return[0].depth = 0
-                for child in children:
-                    if child.parent_id == root_id:
-                        to_return.extend(dfs(child, children, 1))
-        else:
-            for child in children:
-                if not child.parent:
-                    to_return.extend(dfs(child, children, 0))
-        return to_return
+                return []
+
+        return dfs(root, children)
 
     def _generate_object_kwarg_dict(self, content_object, **kwargs):
         """
