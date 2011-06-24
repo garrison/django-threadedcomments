@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='django-threadedcomments',
-    version='0.5.2',
+    version='0.5.3',
     description='A simple yet flexible threaded commenting system.',
     author='Eric Florenzano',
     author_email='floguy@gmail.com',
@@ -14,6 +14,7 @@ setup(
         'threadedcomments.templatetags',
         'threadedcomments.management',
         'threadedcomments.management.commands',
+        'threadedcomments.tests',
     ],
     package_data={
         'threadedcomments' : [
